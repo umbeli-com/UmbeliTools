@@ -1,0 +1,24 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: umbelitools-api:latest
+    container_name: umbelitools-api-prod
+    restart: always
+    expose:
+      - "3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+      - UMBELIUM_SERVICE_KEY=${UMBELIUM_SERVICE_KEY}
+      - VIRTUAL_HOST=api.tools.umbeli.com
+      - LETSENCRYPT_HOST=api.tools.umbeli.com
+      - LETSENCRYPT_EMAIL=admin@umbeli.com
+      - VIRTUAL_PORT=3002
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    external: true

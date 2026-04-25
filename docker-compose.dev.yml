@@ -1,0 +1,13 @@
+services:
+  api:
+    build: .
+    container_name: umbelitools-api-dev
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=development
+      - UMBELIUM_SERVICE_KEY=${UMBELIUM_SERVICE_KEY}
+    volumes:
+      - ./src:/app/src
+    command: npx tsx watch src/index.ts
