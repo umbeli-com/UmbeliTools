@@ -12,6 +12,7 @@ import { scrapeTool } from './scrape';
 import { searchTool } from './search';
 import { dnsTool } from './dns';
 import { domainTool } from './domain';
+import { anonymiumTool } from './anonymium';
 
 const allTools: ToolDefinition[] = [
   emailTool,
@@ -26,6 +27,7 @@ const allTools: ToolDefinition[] = [
   searchTool,
   dnsTool,
   domainTool,
+  anonymiumTool,
 ];
 
 export function mountTools(parentRouter: Router) {

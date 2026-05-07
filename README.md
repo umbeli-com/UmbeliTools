@@ -25,6 +25,10 @@ All tool endpoints require the `x-service-key` header.
 | `POST /api/tools/ai/complete` | Text completion (Anthropic, OpenAI, Gemini) |
 | `POST /api/tools/ai/generate-json` | Structured JSON output from AI |
 | `POST /api/tools/ai/web-research` | Real-time web-grounded research (OpenAI Responses + web_search) |
+| **Anonymium (privacy proxy)** | |
+| `POST /api/tools/anonymium/anonymize` | Detect + replace PII with placeholders, return mapping |
+| `POST /api/tools/anonymium/deanonymize` | Restore originals using a mapping |
+| `POST /api/tools/anonymium/ai-complete` | **Privacy round-trip**: anonymize → call AI → deanonymize response |
 | **Social** | |
 | `POST /api/tools/social/meta/send-dm` | Send Instagram DM |
 | `POST /api/tools/social/meta/reply-comment` | Reply to Instagram comment |
@@ -84,6 +88,45 @@ curl -X POST http://localhost:3002/api/tools/email/send \
     "subject": "Hello",
     "htmlBody": "<p>Hi there!</p>"
   }'
+```
+
+### Privacy-preserving AI call (Anonymium round-trip)
+
+Sensitive data (names, emails, phones, IBANs, API keys, addresses, dates,
+custom rules…) is detected, replaced with `[CATEGORY_N]` placeholders
+before the request leaves UmbeliTools. The AI provider only ever sees
+the anonymized text. When the response comes back, placeholders are
+swapped back to their original values automatically.
+
+```bash
+curl -X POST http://localhost:3002/api/tools/anonymium/ai-complete \
+  -H "Content-Type: application/json" -H "x-service-key: YOUR_KEY" \
+  -d '{
+    "credentials": { "provider": "anthropic", "apiKey": "sk-ant-..." },
+    "messages": [{
+      "role": "user",
+      "content": "Draft a follow-up email for Marie Lefebvre (marie.lefebvre@acme.fr) about contract REF-2024-789 worth 12 500 EUR."
+    }],
+    "systemPrompt": "You are a helpful assistant."
+  }'
+```
+
+The AI provider sees something like:
+```
+Draft a follow-up email for [PERSON_1] ([EMAIL_1]) about contract [ID_1] worth [PRICE_1].
+```
+
+The response you get back has the original values restored:
+```json
+{
+  "ok": true,
+  "data": {
+    "content": "Subject: Suivi contrat REF-2024-789\n\nBonjour Marie Lefebvre, ...",
+    "anonymizedContent": "Subject: Suivi contrat [ID_1]\n\nBonjour [PERSON_1], ...",
+    "mapping": [{ "original": "Marie Lefebvre", "placeholder": "[PERSON_1]", ... }, ...],
+    "sentMessages": [...]
+  }
+}
 ```
 
 ### AI Completion
