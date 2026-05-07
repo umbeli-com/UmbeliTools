@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import type { ToolDefinition } from '../../types/tool';
 import { sendSuccess, sendError } from '../../lib/response';
-import { listMessages, getMessage, sendMessage, markRead } from './outlook.adapter';
-import type { OutlookListInput, OutlookGetInput, OutlookSendInput, OutlookMarkReadInput } from './types';
+import { listMessages, getMessage, sendMessage, markRead, sendAsApp } from './outlook.adapter';
+import type { OutlookListInput, OutlookGetInput, OutlookSendInput, OutlookMarkReadInput, OutlookSendAsAppInput } from './types';
 
 const router = Router();
 
@@ -51,6 +51,25 @@ router.post('/send-message', async (req, res) => {
   try {
     const result = await sendMessage(input.credentials, input);
     sendSuccess(res, result, { durationMs: Date.now() - start, provider: 'outlook' });
+  } catch (err: any) {
+    sendError(res, 502, 'PROVIDER_ERROR', err.message, undefined, { durationMs: Date.now() - start, provider: 'outlook' });
+  }
+});
+
+router.post('/send-as-app', async (req, res) => {
+  const start = Date.now();
+  const input = req.body as OutlookSendAsAppInput;
+
+  if (!input.credentials?.tenantId || !input.credentials?.clientId || !input.credentials?.clientSecret || !input.credentials?.userEmail) {
+    return sendError(res, 400, 'MISSING_CREDENTIALS', 'credentials.tenantId, clientId, clientSecret, and userEmail are required');
+  }
+  if (!input.to?.length || !input.subject || !input.body) {
+    return sendError(res, 400, 'MISSING_FIELDS', 'to, subject, and body are required');
+  }
+
+  try {
+    const result = await sendAsApp(input.credentials, input);
+    sendSuccess(res, result, { durationMs: Date.now() - start, provider: 'outlook', flow: 'client_credentials' });
   } catch (err: any) {
     sendError(res, 502, 'PROVIDER_ERROR', err.message, undefined, { durationMs: Date.now() - start, provider: 'outlook' });
   }
@@ -125,6 +144,33 @@ export const outlookTool: ToolDefinition = {
           bodyType: { type: 'string', enum: ['text', 'html'], default: 'text' },
           cc: { type: 'array', items: { type: 'string' } },
           bcc: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+    {
+      action: 'send-as-app',
+      description: 'Send email via Microsoft Graph using client_credentials flow (server-to-server, app permissions, no user session). Requires Mail.Send application permission with admin consent in Entra ID.',
+      inputSchema: {
+        type: 'object',
+        required: ['credentials', 'to', 'subject', 'body'],
+        properties: {
+          credentials: {
+            type: 'object',
+            required: ['tenantId', 'clientId', 'clientSecret', 'userEmail'],
+            properties: {
+              tenantId: { type: 'string', description: 'Azure tenant GUID' },
+              clientId: { type: 'string', description: 'App registration client ID' },
+              clientSecret: { type: 'string' },
+              userEmail: { type: 'string', description: 'Mailbox to send as' },
+            },
+          },
+          to: { type: 'array', items: { type: 'string' } },
+          subject: { type: 'string' },
+          body: { type: 'string' },
+          bodyType: { type: 'string', enum: ['text', 'html'], default: 'text' },
+          cc: { type: 'array', items: { type: 'string' } },
+          bcc: { type: 'array', items: { type: 'string' } },
+          saveToSentItems: { type: 'boolean', default: true },
         },
       },
     },

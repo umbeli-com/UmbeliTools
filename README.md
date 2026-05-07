@@ -20,9 +20,11 @@ All tool endpoints require the `x-service-key` header.
 | `GET /api/tools` | List all tools, actions, and input schemas |
 | **Email** | |
 | `POST /api/tools/email/send` | Send email via Mailjet |
+| `POST /api/tools/email/smtp-send` | Send via any SMTP server (Outlook SMTP, Gmail SMTP, infomaniak, etc.) |
 | **AI** | |
 | `POST /api/tools/ai/complete` | Text completion (Anthropic, OpenAI, Gemini) |
 | `POST /api/tools/ai/generate-json` | Structured JSON output from AI |
+| `POST /api/tools/ai/web-research` | Real-time web-grounded research (OpenAI Responses + web_search) |
 | **Social** | |
 | `POST /api/tools/social/meta/send-dm` | Send Instagram DM |
 | `POST /api/tools/social/meta/reply-comment` | Reply to Instagram comment |
@@ -38,7 +40,8 @@ All tool endpoints require the `x-service-key` header.
 | **Outlook** | |
 | `POST /api/tools/outlook/list-messages` | List Outlook messages |
 | `POST /api/tools/outlook/get-message` | Get full message body |
-| `POST /api/tools/outlook/send-message` | Send an email via Outlook |
+| `POST /api/tools/outlook/send-message` | Send via Outlook (delegated/refresh-token flow) |
+| `POST /api/tools/outlook/send-as-app` | Send via Microsoft Graph client_credentials (server-to-server, Mail.Send app perm) |
 | `POST /api/tools/outlook/mark-read` | Mark an Outlook message as read/unread |
 | **Inbox** | |
 | `POST /api/tools/inbox/log-inquiry` | Log inquiry to a BusinessInbox/Ciao instance |
@@ -76,6 +79,34 @@ curl -X POST http://localhost:3002/api/tools/ai/complete \
     "messages": [{ "role": "user", "content": "Hello!" }],
     "systemPrompt": "You are helpful.",
     "maxTokens": 256
+  }'
+```
+
+### Web-grounded AI research (lead enrichment, fact-checking)
+
+```bash
+curl -X POST http://localhost:3002/api/tools/ai/web-research \
+  -H "Content-Type: application/json" -H "x-service-key: YOUR_KEY" \
+  -d '{
+    "credentials": { "apiKey": "sk-..." },
+    "prompt": "Find what Acme Inc. (acme.com) does, who their decision-makers are, and current relevant news. Return markdown with sources."
+  }'
+```
+
+### Send via SMTP (any provider)
+
+```bash
+curl -X POST http://localhost:3002/api/tools/email/smtp-send \
+  -H "Content-Type: application/json" -H "x-service-key: YOUR_KEY" \
+  -d '{
+    "credentials": {
+      "host": "smtp.office365.com", "port": 587,
+      "user": "you@example.com", "password": "..."
+    },
+    "from": { "email": "you@example.com", "name": "You" },
+    "to": "lead@example.com",
+    "subject": "Hello",
+    "html": "<p>Hi there!</p>"
   }'
 ```
 

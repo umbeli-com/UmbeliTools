@@ -34,3 +34,19 @@ export interface OutlookMarkReadInput {
   messageId: string;
   isRead: boolean;
 }
+
+export interface OutlookSendAsAppInput {
+  credentials: {
+    tenantId: string;
+    clientId: string;
+    clientSecret: string;
+    userEmail: string;
+  };
+  to: string[];
+  subject: string;
+  body: string;
+  bodyType?: 'text' | 'html';
+  cc?: string[];
+  bcc?: string[];
+  saveToSentItems?: boolean;
+}

@@ -4,7 +4,8 @@ import { sendSuccess, sendError } from '../../lib/response';
 import { anthropicComplete } from './anthropic.adapter';
 import { openaiComplete } from './openai.adapter';
 import { geminiComplete } from './gemini.adapter';
-import type { AICompleteInput, AIGenerateJSONInput } from './types';
+import { openaiWebResearch } from './openai-responses.adapter';
+import type { AICompleteInput, AIGenerateJSONInput, AIWebResearchInput } from './types';
 
 const router = Router();
 
@@ -55,6 +56,21 @@ router.post('/complete', async (req, res) => {
       durationMs: Date.now() - start,
       provider: input.credentials.provider,
     });
+  }
+});
+
+router.post('/web-research', async (req, res) => {
+  const start = Date.now();
+  const input = req.body as AIWebResearchInput;
+
+  if (!input.credentials?.apiKey) return sendError(res, 400, 'MISSING_CREDENTIALS', 'credentials.apiKey is required');
+  if (!input.prompt) return sendError(res, 400, 'MISSING_FIELDS', 'prompt is required');
+
+  try {
+    const result = await openaiWebResearch(input.credentials.apiKey, input.prompt, input.model);
+    sendSuccess(res, result, { durationMs: Date.now() - start, provider: 'openai', tool: 'web_search' });
+  } catch (err: any) {
+    sendError(res, 502, 'PROVIDER_ERROR', err.message, undefined, { durationMs: Date.now() - start, provider: 'openai' });
   }
 });
 
@@ -117,6 +133,23 @@ export const aiTool: ToolDefinition = {
           model: { type: 'string' },
           maxTokens: { type: 'number' },
           temperature: { type: 'number' },
+        },
+      },
+    },
+    {
+      action: 'web-research',
+      description: 'Real-time web-grounded AI research via OpenAI Responses API + web_search tool',
+      inputSchema: {
+        type: 'object',
+        required: ['credentials', 'prompt'],
+        properties: {
+          credentials: {
+            type: 'object',
+            required: ['apiKey'],
+            properties: { apiKey: { type: 'string', description: 'OpenAI API key' } },
+          },
+          prompt: { type: 'string', description: 'Research prompt' },
+          model: { type: 'string', default: 'gpt-4o-mini' },
         },
       },
     },

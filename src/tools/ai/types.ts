@@ -22,3 +22,11 @@ export interface AIGenerateJSONInput {
   model?: string;
   maxTokens?: number;
 }
+
+export interface AIWebResearchInput {
+  credentials: {
+    apiKey: string;
+  };
+  prompt: string;
+  model?: string;
+}
