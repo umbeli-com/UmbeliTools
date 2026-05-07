@@ -48,6 +48,24 @@ All tool endpoints require the `x-service-key` header.
 | `POST /api/tools/inbox/get-stats` | Get stats from a BusinessInbox instance |
 | **SMS** | |
 | `POST /api/tools/sms/send` | Send SMS or WhatsApp via Twilio |
+| **Scrape** | |
+| `POST /api/tools/scrape/fetch-markdown` | Fetch any URL as clean markdown via jina.ai |
+| `POST /api/tools/scrape/fetch-html` | Fetch raw HTML directly with timeout |
+| **Search** | |
+| `POST /api/tools/search/google` | Run a Google search via Serper API |
+| **DNS** | |
+| `POST /api/tools/dns/create-zone` | Create a Cloudflare DNS zone |
+| `POST /api/tools/dns/get-zone` | Get an existing zone by domain |
+| `POST /api/tools/dns/delete-zone` | Delete a zone |
+| `POST /api/tools/dns/list-records` | List records in a zone |
+| `POST /api/tools/dns/add-record` | Add a DNS record |
+| `POST /api/tools/dns/update-record` | Update a DNS record |
+| `POST /api/tools/dns/delete-record` | Delete a DNS record |
+| **Domain** | |
+| `POST /api/tools/domain/check-availability` | Check if a domain is available (Gandi) |
+| `POST /api/tools/domain/suggest` | Get domain suggestions for a query |
+| `POST /api/tools/domain/purchase` | Register a domain via Gandi |
+| `POST /api/tools/domain/set-nameservers` | Update nameservers for a domain |
 | **Webhook** | |
 | `POST /api/tools/webhook/dispatch` | Dispatch HTTP webhook |
 
@@ -90,6 +108,40 @@ curl -X POST http://localhost:3002/api/tools/ai/web-research \
   -d '{
     "credentials": { "apiKey": "sk-..." },
     "prompt": "Find what Acme Inc. (acme.com) does, who their decision-makers are, and current relevant news. Return markdown with sources."
+  }'
+```
+
+### Scrape a page as markdown (great for AI agents)
+
+```bash
+curl -X POST http://localhost:3002/api/tools/scrape/fetch-markdown \
+  -H "Content-Type: application/json" -H "x-service-key: YOUR_KEY" \
+  -d '{ "url": "https://example.com/some-article" }'
+```
+
+### Spin up a domain + DNS for a new tenant
+
+```bash
+# 1) Check availability
+curl -X POST http://localhost:3002/api/tools/domain/check-availability \
+  -H "Content-Type: application/json" -H "x-service-key: YOUR_KEY" \
+  -d '{ "credentials": { "apiKey": "GANDI_KEY" }, "domain": "newtenant.com" }'
+
+# 2) Create a Cloudflare zone
+curl -X POST http://localhost:3002/api/tools/dns/create-zone \
+  -H "Content-Type: application/json" -H "x-service-key: YOUR_KEY" \
+  -d '{
+    "credentials": { "apiToken": "CF_TOKEN", "accountId": "CF_ACCOUNT_ID" },
+    "domain": "newtenant.com"
+  }'
+
+# 3) Add an A record pointing to your server
+curl -X POST http://localhost:3002/api/tools/dns/add-record \
+  -H "Content-Type: application/json" -H "x-service-key: YOUR_KEY" \
+  -d '{
+    "credentials": { "apiToken": "CF_TOKEN" },
+    "zoneId": "ZONE_ID_FROM_STEP_2",
+    "type": "A", "name": "newtenant.com", "content": "1.2.3.4"
   }'
 ```
 

@@ -8,8 +8,25 @@ import { webhookTool } from './webhook';
 import { gmailTool } from './gmail';
 import { outlookTool } from './outlook';
 import { inboxTool } from './inbox';
+import { scrapeTool } from './scrape';
+import { searchTool } from './search';
+import { dnsTool } from './dns';
+import { domainTool } from './domain';
 
-const allTools: ToolDefinition[] = [emailTool, aiTool, socialTool, smsTool, webhookTool, gmailTool, outlookTool, inboxTool];
+const allTools: ToolDefinition[] = [
+  emailTool,
+  aiTool,
+  socialTool,
+  smsTool,
+  webhookTool,
+  gmailTool,
+  outlookTool,
+  inboxTool,
+  scrapeTool,
+  searchTool,
+  dnsTool,
+  domainTool,
+];
 
 export function mountTools(parentRouter: Router) {
   for (const tool of allTools) {
