@@ -63,3 +63,23 @@ export async function metaPublish(accessToken: string, igUserId: string, params:
   });
   return result;
 }
+
+export async function metaListConversations(accessToken: string, igUserId: string, opts: { platform?: 'instagram' | 'messenger'; limit?: number } = {}) {
+  const adapter = createAdapter(accessToken);
+  return adapter.graphRequest('GET', `/${igUserId}/conversations`, {
+    query: {
+      platform: opts.platform || 'instagram',
+      limit: opts.limit || 25,
+      fields: 'id,updated_time,participants',
+    },
+  });
+}
+
+export async function metaListConversationMessages(accessToken: string, conversationId: string, limit = 25) {
+  const adapter = createAdapter(accessToken);
+  return adapter.graphRequest('GET', `/${conversationId}`, {
+    query: {
+      fields: `messages.limit(${limit}){id,created_time,from,to,message}`,
+    },
+  });
+}

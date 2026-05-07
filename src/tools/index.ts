@@ -5,8 +5,11 @@ import { aiTool } from './ai';
 import { socialTool } from './social';
 import { smsTool } from './sms';
 import { webhookTool } from './webhook';
+import { gmailTool } from './gmail';
+import { outlookTool } from './outlook';
+import { inboxTool } from './inbox';
 
-const allTools: ToolDefinition[] = [emailTool, aiTool, socialTool, smsTool, webhookTool];
+const allTools: ToolDefinition[] = [emailTool, aiTool, socialTool, smsTool, webhookTool, gmailTool, outlookTool, inboxTool];
 
 export function mountTools(parentRouter: Router) {
   for (const tool of allTools) {

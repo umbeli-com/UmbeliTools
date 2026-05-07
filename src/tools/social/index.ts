@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import type { ToolDefinition } from '../../types/tool';
 import { sendSuccess, sendError } from '../../lib/response';
-import { metaSendDM, metaReplyComment, metaGetAccounts, metaPublish } from './meta.adapter';
-import type { MetaSendDMInput, MetaReplyCommentInput, MetaGetAccountsInput, MetaPublishInput } from './types';
+import { metaSendDM, metaReplyComment, metaGetAccounts, metaPublish, metaListConversations, metaListConversationMessages } from './meta.adapter';
+import type { MetaSendDMInput, MetaReplyCommentInput, MetaGetAccountsInput, MetaPublishInput, MetaListConversationsInput, MetaListMessagesInput } from './types';
 
 const router = Router();
 
@@ -65,6 +65,39 @@ router.post('/meta/publish', async (req, res) => {
   }
 });
 
+router.post('/meta/list-conversations', async (req, res) => {
+  const start = Date.now();
+  const input = req.body as MetaListConversationsInput;
+
+  if (!input.credentials?.accessToken) return sendError(res, 400, 'MISSING_CREDENTIALS', 'credentials.accessToken is required');
+  if (!input.igUserId) return sendError(res, 400, 'MISSING_FIELDS', 'igUserId is required');
+
+  try {
+    const result = await metaListConversations(input.credentials.accessToken, input.igUserId, {
+      platform: input.platform,
+      limit: input.limit,
+    });
+    sendSuccess(res, result, { durationMs: Date.now() - start, provider: 'meta' });
+  } catch (err: any) {
+    sendError(res, 502, 'PROVIDER_ERROR', err.message, undefined, { durationMs: Date.now() - start, provider: 'meta' });
+  }
+});
+
+router.post('/meta/list-messages', async (req, res) => {
+  const start = Date.now();
+  const input = req.body as MetaListMessagesInput;
+
+  if (!input.credentials?.accessToken) return sendError(res, 400, 'MISSING_CREDENTIALS', 'credentials.accessToken is required');
+  if (!input.conversationId) return sendError(res, 400, 'MISSING_FIELDS', 'conversationId is required');
+
+  try {
+    const result = await metaListConversationMessages(input.credentials.accessToken, input.conversationId, input.limit);
+    sendSuccess(res, result, { durationMs: Date.now() - start, provider: 'meta' });
+  } catch (err: any) {
+    sendError(res, 502, 'PROVIDER_ERROR', err.message, undefined, { durationMs: Date.now() - start, provider: 'meta' });
+  }
+});
+
 export const socialTool: ToolDefinition = {
   name: 'social',
   description: 'Social media integrations (Meta/Instagram Graph API)',
@@ -117,6 +150,33 @@ export const socialTool: ToolDefinition = {
           credentials: { type: 'object', required: ['accessToken'], properties: { accessToken: { type: 'string' } } },
           igUserId: { type: 'string' },
           params: { type: 'object', description: 'Media container params (image_url, caption, etc.)' },
+        },
+      },
+    },
+    {
+      action: 'meta/list-conversations',
+      description: 'List Instagram or Messenger conversations for an account',
+      inputSchema: {
+        type: 'object',
+        required: ['credentials', 'igUserId'],
+        properties: {
+          credentials: { type: 'object', required: ['accessToken'], properties: { accessToken: { type: 'string' } } },
+          igUserId: { type: 'string' },
+          platform: { type: 'string', enum: ['instagram', 'messenger'], default: 'instagram' },
+          limit: { type: 'number', default: 25 },
+        },
+      },
+    },
+    {
+      action: 'meta/list-messages',
+      description: 'List messages in a conversation',
+      inputSchema: {
+        type: 'object',
+        required: ['credentials', 'conversationId'],
+        properties: {
+          credentials: { type: 'object', required: ['accessToken'], properties: { accessToken: { type: 'string' } } },
+          conversationId: { type: 'string' },
+          limit: { type: 'number', default: 25 },
         },
       },
     },

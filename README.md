@@ -28,6 +28,21 @@ All tool endpoints require the `x-service-key` header.
 | `POST /api/tools/social/meta/reply-comment` | Reply to Instagram comment |
 | `POST /api/tools/social/meta/get-accounts` | List connected pages/IG accounts |
 | `POST /api/tools/social/meta/publish` | Publish media to Instagram |
+| `POST /api/tools/social/meta/list-conversations` | List Instagram/Messenger conversations |
+| `POST /api/tools/social/meta/list-messages` | List messages in a conversation |
+| **Gmail** | |
+| `POST /api/tools/gmail/list-messages` | List Gmail messages by query |
+| `POST /api/tools/gmail/get-message` | Get full message body |
+| `POST /api/tools/gmail/send-message` | Send an email via Gmail |
+| `POST /api/tools/gmail/modify-message` | Add/remove labels (e.g. mark read) |
+| **Outlook** | |
+| `POST /api/tools/outlook/list-messages` | List Outlook messages |
+| `POST /api/tools/outlook/get-message` | Get full message body |
+| `POST /api/tools/outlook/send-message` | Send an email via Outlook |
+| `POST /api/tools/outlook/mark-read` | Mark an Outlook message as read/unread |
+| **Inbox** | |
+| `POST /api/tools/inbox/log-inquiry` | Log inquiry to a BusinessInbox/Ciao instance |
+| `POST /api/tools/inbox/get-stats` | Get stats from a BusinessInbox instance |
 | **SMS** | |
 | `POST /api/tools/sms/send` | Send SMS or WhatsApp via Twilio |
 | **Webhook** | |
@@ -75,6 +90,33 @@ curl -X POST http://localhost:3002/api/tools/sms/send \
     "to": "+15551234567",
     "body": "Your code is 1234",
     "channel": "sms"
+  }'
+```
+
+### Read Gmail and forward to BusinessInbox
+
+```bash
+# 1) List unread Gmail messages
+curl -X POST http://localhost:3002/api/tools/gmail/list-messages \
+  -H "Content-Type: application/json" -H "x-service-key: YOUR_KEY" \
+  -d '{
+    "credentials": { "clientId": "...", "clientSecret": "...", "refreshToken": "..." },
+    "query": "is:unread",
+    "maxResults": 50
+  }'
+
+# 2) Forward an inquiry to BusinessInbox/Ciao
+curl -X POST http://localhost:3002/api/tools/inbox/log-inquiry \
+  -H "Content-Type: application/json" -H "x-service-key: YOUR_KEY" \
+  -d '{
+    "credentials": { "baseUrl": "https://samtr.umbeli.com", "apiToken": "..." },
+    "canal": "email",
+    "source": "gmail",
+    "expediteur": "lead@example.com",
+    "sujet": "Question about your services",
+    "texte": "Hi, I am interested in...",
+    "reponse_proposee": "Thanks for reaching out!",
+    "external_id": "gmail-msg-12345"
   }'
 ```
 

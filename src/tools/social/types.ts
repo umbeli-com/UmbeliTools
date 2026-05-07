@@ -20,3 +20,16 @@ export interface MetaPublishInput {
   igUserId: string;
   params: Record<string, string>;
 }
+
+export interface MetaListConversationsInput {
+  credentials: { accessToken: string };
+  igUserId: string;
+  platform?: 'instagram' | 'messenger';
+  limit?: number;
+}
+
+export interface MetaListMessagesInput {
+  credentials: { accessToken: string };
+  conversationId: string;
+  limit?: number;
+}
