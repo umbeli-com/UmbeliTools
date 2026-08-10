@@ -273,35 +273,43 @@ curl -X POST http://localhost:3002/api/tools/social/meta/send-dm \
 
 ## Calling from Any Umbeli App
 
-Add a thin helper to your app:
+Install the typed SDK from GitHub Packages — every node is exposed as a typed method, no fetch boilerplate needed:
 
-```typescript
-const TOOLS_URL = process.env.UMBELITOOLS_URL || 'http://umbelitools-api-prod:3002';
+```bash
+# .npmrc
+@umbeli-com:registry=https://npm.pkg.github.com
 
-export async function callTool(tool: string, action: string, body: object) {
-  const res = await fetch(`${TOOLS_URL}/api/tools/${tool}/${action}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-service-key': process.env.UMBELIUM_SERVICE_KEY!,
-    },
-    body: JSON.stringify(body),
-  });
-  return res.json();
-}
+npm install @umbeli-com/tools
 ```
 
-Then use it anywhere:
-
 ```typescript
-await callTool('email', 'send', {
+import { UmbeliTools } from '@umbeli-com/tools';
+
+const tools = new UmbeliTools({
+  url: process.env.UMBELITOOLS_URL ?? 'http://umbelitools-api-prod:3002',
+  serviceKey: process.env.UMBELIUM_SERVICE_KEY!,
+});
+
+await tools.email.send({
   credentials: { apiKey: MJ_KEY, secretKey: MJ_SECRET },
   from: { email: 'noreply@myapp.com' },
   to: [{ email: 'user@example.com' }],
   subject: 'Welcome!',
   htmlBody: '<p>Welcome to our platform</p>',
 });
+
+await tools.ai.complete({
+  credentials: { provider: 'anthropic', apiKey: ANTHROPIC_KEY },
+  messages: [{ role: 'user', content: 'Hello' }],
+});
+
+await tools.dns.addRecord({
+  credentials: { apiToken: CF_TOKEN },
+  zoneId, type: 'A', name: 'app.example.com', content: '1.2.3.4',
+});
 ```
+
+The SDK lives at [`client/`](./client) and is auto-published to GitHub Packages on every push to `main` that touches it. See [client/README.md](./client/README.md) for the full method catalog, options, and error handling.
 
 ## Response Format
 

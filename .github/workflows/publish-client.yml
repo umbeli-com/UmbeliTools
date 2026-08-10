@@ -1,0 +1,50 @@
+name: Publish @umbeli-com/tools
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'client/**'
+      - '.github/workflows/publish-client.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://npm.pkg.github.com
+          scope: '@umbeli-com'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish (skip if version unchanged)
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "${name}@${version}" version --registry=https://npm.pkg.github.com >/dev/null 2>&1; then
+            echo "Skipping ${name}@${version}; already published."
+            exit 0
+          fi
+          npm publish
