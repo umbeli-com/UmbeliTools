@@ -2,6 +2,12 @@
 
 Centralized reusable toolbox service for the Umbeli SaaS ecosystem. Plug-and-play integrations that any app can call via a simple REST API.
 
+## Place dans la suite Umbelium
+
+UmbeliTools est le service d'outils partagé de la suite Umbelium : les apps SaaS l'appellent via REST en présentant le header `x-service-key` (valeur de `UMBELIUM_SERVICE_KEY`). Le service écoute sur le port **3002**.
+
+Règle d'or : les apps consommatrices appellent UmbeliTools **côté serveur uniquement** — la clé de service ne doit jamais se retrouver dans un bundle frontend. Pour éviter le boilerplate `fetch`, utilisez le SDK typé [`@umbeli-com/tools`](./client) publié sur GitHub Packages (voir [Calling from Any Umbeli App](#calling-from-any-umbeli-app)).
+
 ## Quick Start
 
 ```bash
