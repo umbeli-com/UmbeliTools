@@ -12,3 +12,6 @@ export * from './scrape.js';
 export * from './search.js';
 export * from './dns.js';
 export * from './domain.js';
+export * from './storage.js';
+export * from './oauth.js';
+export * from './events.js';

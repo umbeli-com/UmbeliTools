@@ -13,6 +13,9 @@ import { searchTool } from './search';
 import { dnsTool } from './dns';
 import { domainTool } from './domain';
 import { anonymiumTool } from './anonymium';
+import { storageTool } from './storage';
+import { oauthTool } from './oauth';
+import { eventsTool } from './events';
 
 const allTools: ToolDefinition[] = [
   emailTool,
@@ -28,6 +31,9 @@ const allTools: ToolDefinition[] = [
   dnsTool,
   domainTool,
   anonymiumTool,
+  storageTool,
+  oauthTool,
+  eventsTool,
 ];
 
 export function mountTools(parentRouter: Router) {

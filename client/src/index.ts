@@ -13,6 +13,9 @@ import { ScrapeTool } from './tools/scrape.js';
 import { SearchTool } from './tools/search.js';
 import { DnsTool } from './tools/dns.js';
 import { DomainTool } from './tools/domain.js';
+import { StorageTool } from './tools/storage.js';
+import { OAuthTool } from './tools/oauth.js';
+import { EventsTool } from './tools/events.js';
 
 /**
  * Typed client for the UmbeliTools service.
@@ -44,6 +47,9 @@ export class UmbeliTools extends UmbeliToolsCore {
   readonly search: SearchTool;
   readonly dns: DnsTool;
   readonly domain: DomainTool;
+  readonly storage: StorageTool;
+  readonly oauth: OAuthTool;
+  readonly events: EventsTool;
 
   constructor(opts: UmbeliToolsClientOptions) {
     super(opts);
@@ -60,6 +66,9 @@ export class UmbeliTools extends UmbeliToolsCore {
     this.search = new SearchTool(this);
     this.dns = new DnsTool(this);
     this.domain = new DomainTool(this);
+    this.storage = new StorageTool(this);
+    this.oauth = new OAuthTool(this);
+    this.events = new EventsTool(this);
   }
 }
 
