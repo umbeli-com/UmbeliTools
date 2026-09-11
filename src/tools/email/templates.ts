@@ -70,6 +70,24 @@ export function esc(value: unknown): string {
   return String(value ?? '').replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
+/**
+ * Rendre une valeur sûre pour un en-tête d'e-mail.
+ *
+ * Un CR ou un LF dans un sujet, c'est de l'injection d'en-tête : « Bonjour\r\n
+ * Bcc: attaquant@example.com » ajoute un destinataire caché si le transport
+ * recopie la valeur telle quelle. Nodemailer et l'API Mailjet encodent leurs
+ * en-têtes, mais `render-template` rend SANS envoyer et l'appelant est libre de
+ * passer le sujet à son propre transport — l'endroit correct pour couper, c'est
+ * ici, une seule fois, pour tout le monde.
+ */
+export function headerSafe(value: unknown): string {
+  return String(value ?? '')
+    .replace(/[\r\n\u0000\u2028\u2029]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
 /** Strip tags (used to turn a small piece of copy into its text/plain twin). */
 export function stripTags(value: unknown): string {
   return String(value ?? '')
@@ -698,6 +716,24 @@ export function renderTemplate(
   branding: EmailBranding = {},
 ): RenderedEmail {
   const brand = resolveBrand(branding);
+  return sanitizeHeaders(renderByName(template, vars, brand));
+}
+
+/** Les champs qui deviennent des en-têtes ne peuvent pas porter de saut de ligne. */
+function sanitizeHeaders(rendered: RenderedEmail): RenderedEmail {
+  return {
+    ...rendered,
+    subject: headerSafe(rendered.subject),
+    preheader: headerSafe(rendered.preheader),
+    fromName: headerSafe(rendered.fromName),
+  };
+}
+
+function renderByName(
+  template: EmailTemplateName,
+  vars: EmailTemplateVars,
+  brand: ResolvedBrand,
+): RenderedEmail {
   switch (template) {
     case 'auth.signup':
     case 'auth.recovery':
