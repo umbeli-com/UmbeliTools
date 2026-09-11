@@ -1,8 +1,18 @@
-interface MailjetMessage {
-  From: { Email: string; Name?: string };
-  To: { Email: string; Name?: string }[];
+export interface MailjetAddress {
+  Email: string;
+  Name?: string;
+}
+
+export interface MailjetMessage {
+  From: MailjetAddress;
+  To: MailjetAddress[];
+  Cc?: MailjetAddress[];
+  Bcc?: MailjetAddress[];
+  ReplyTo?: MailjetAddress;
   Subject: string;
   HTMLPart: string;
+  /** text/plain alternative — always send one alongside HTMLPart. */
+  TextPart?: string;
 }
 
 export async function sendMailjet(
