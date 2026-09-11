@@ -1,0 +1,70 @@
+{
+  "name": "@umbeli-com/server-kit",
+  "version": "1.0.0",
+  "description": "Shared Express plumbing for Umbeli backends — Supabase bearer auth, service key, error envelope, CORS allowlist, rate limiting, path-traversal guard. Dual CJS + ESM.",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      },
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "default": "./dist/cjs/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && node scripts/fixup-dual-build.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test test/",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": ">=2.0.0",
+    "express": "^4.17.0 || ^5.0.0",
+    "ws": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@supabase/supabase-js": {
+      "optional": true
+    },
+    "ws": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/umbeli-com/UmbeliTools.git",
+    "directory": "server-kit"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "express",
+    "supabase",
+    "middleware",
+    "umbeli"
+  ],
+  "license": "MIT"
+}
