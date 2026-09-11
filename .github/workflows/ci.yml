@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  service:
+    name: service + SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - name: Typecheck (service, tests included)
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test
+
+      - name: SDK typecheck + build
+        working-directory: client
+        run: npm ci && npx tsc --noEmit && npm run build
+
+  server-kit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server-kit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      # `npm test` construit d'abord : les tests importent le package PAR SON NOM,
+      # donc ils passent par la vraie carte d'exports — une carte cassée fait échouer la suite.
+      - run: npm test

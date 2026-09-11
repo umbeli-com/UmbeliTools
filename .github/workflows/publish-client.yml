@@ -1,4 +1,4 @@
-name: Publish @umbeli-com/tools
+name: Publish packages
 
 on:
   push:
@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'client/**'
+      - 'server-kit/**'
       - '.github/workflows/publish-client.yml'
   workflow_dispatch:
 
@@ -16,9 +17,13 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [client, server-kit]
     defaults:
       run:
-        working-directory: client
+        working-directory: ${{ matrix.package }}
     env:
       NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
