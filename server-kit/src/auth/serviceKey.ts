@@ -12,7 +12,11 @@
 
 import crypto from 'node:crypto';
 import type { Request, RequestHandler, Response } from 'express';
-import { sendError } from '../http/envelope.js';
+import {
+  envelopeErrorFormat,
+  respondError,
+  type ErrorFormatOption,
+} from '../http/envelope.js';
 
 /** Constant-time string equality. Never throws, whatever it is handed. */
 export function timingSafeEqualStr(a: unknown, b: unknown): boolean {
@@ -26,11 +30,32 @@ export function timingSafeEqualStr(a: unknown, b: unknown): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-export interface ServiceKeyOptions {
+export interface ServiceKeyOptions extends ErrorFormatOption {
   /** Header carrying the key. Default `x-service-key` (the suite convention). */
   header?: string;
   /** Extra keys accepted — for a rotation window. */
   alsoAccept?: string[];
+  /**
+   * Status for a missing/invalid key. Default 401.
+   *
+   * Servum answers 403 (`requireServiceKey` in
+   * `apps/api/src/middlewares/auth.ts`). 401 is the better answer — the caller
+   * has not identified itself — but "better" is not worth changing what a
+   * deployed client already branches on, so the number is an argument.
+   */
+  status?: number;
+  /** Message for a missing/invalid key. Default `Invalid or missing service key`. */
+  message?: string;
+  /**
+   * `true` (default): a server started with no key answers 500 CONFIG_ERROR.
+   * An unconfigured service that answered 401/403 would look like a CALLER
+   * mistake, and the suite has already lost an afternoon to exactly that.
+   *
+   * `false`: no key configured simply rejects like a wrong key — what Servum,
+   * UmbeliTools and Noesium do today. Set it only to keep an existing contract
+   * byte-identical; it hides a deployment fault behind an auth failure.
+   */
+  requireConfigured?: boolean;
 }
 
 /** Read the service key a request presents, if any. */
@@ -72,13 +97,28 @@ export function serviceKeyMiddleware(
   key: string | undefined,
   options: ServiceKeyOptions = {},
 ): RequestHandler {
+  const {
+    format = envelopeErrorFormat,
+    status = 401,
+    message = 'Invalid or missing service key',
+    requireConfigured = true,
+  } = options;
+
   return function serviceKeyGuard(req: Request, res: Response, next) {
-    if (!key) {
-      sendError(res, 500, 'CONFIG_ERROR', 'Service key is not configured on this server');
+    if (!key && requireConfigured) {
+      respondError(
+        res,
+        {
+          status: 500,
+          code: 'CONFIG_ERROR',
+          message: 'Service key is not configured on this server',
+        },
+        format,
+      );
       return;
     }
     if (!hasValidServiceKey(req, key, options)) {
-      sendError(res, 401, 'UNAUTHORIZED', 'Invalid or missing service key');
+      respondError(res, { status, code: 'UNAUTHORIZED', message }, format);
       return;
     }
     req.isService = true;

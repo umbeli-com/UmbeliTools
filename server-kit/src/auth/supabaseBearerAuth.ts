@@ -18,10 +18,15 @@
  */
 
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
-import { sendError } from '../http/envelope.js';
+import {
+  envelopeErrorFormat,
+  respondError,
+  type ErrorFormatOption,
+} from '../http/envelope.js';
 import type { SupabaseAuthCapableClient, SupabaseAuthUser } from '../types.js';
 
-export interface SupabaseBearerAuthOptions<TUser = SupabaseAuthUser> {
+export interface SupabaseBearerAuthOptions<TUser = SupabaseAuthUser>
+  extends ErrorFormatOption {
   /**
    * `true` (default): answer 401 when there is no valid token.
    * `false`: continue with `req.userId` undefined — the caller's route decides.
@@ -45,6 +50,32 @@ export interface SupabaseBearerAuthOptions<TUser = SupabaseAuthUser> {
   queryParam?: string;
   /** Called when the auth backend itself fails. Default: `console.error`. */
   onAuthBackendError?: (err: unknown, req: Request) => void;
+  /**
+   * Override the four rejection messages. Every default is unchanged unless
+   * the key is present.
+   *
+   * `format: errorFormats.flat` alone gets an adopter the SHAPE of its legacy
+   * body, not its TEXT — and the suite's texts are all different for the same
+   * branch:
+   *
+   *   - Servum  `apps/api/src/middlewares/auth.ts`: `"Missing authorization header"`
+   *   - Webum   `apps/api/src/middleware/auth.ts`: `"Authorization header missing"`
+   *     when there is no header at all, `"Bearer token missing"` when there is
+   *     one it cannot parse — which is why these take the request: the kit has
+   *     a single no-token branch and an adopter may need to split it.
+   *
+   * Only `"Invalid or expired token"` is already common to both.
+   */
+  messages?: {
+    /** No bearer token (and no `?token=`) on a required route. 401. */
+    missingToken?: string | ((req: Request) => string);
+    /** Supabase rejected the token. 401. */
+    invalidToken?: string | ((req: Request) => string);
+    /** `auth.getUser()` threw — Supabase is unreachable. 503. */
+    authUnavailable?: string | ((req: Request) => string);
+    /** `mapUser` returned null/undefined — no local account. 403. */
+    notProvisioned?: string | ((req: Request) => string);
+  };
 }
 
 /** Extract a bearer token from the Authorization header. */
@@ -75,7 +106,48 @@ export function supabaseBearerAuth<TUser = SupabaseAuthUser>(
     queryParam = 'token',
     onAuthBackendError = (err: unknown) =>
       console.error('[server-kit] supabase auth backend error:', err),
+    // The reason Webum took `bearerToken()` and left this middleware alone:
+    // its admin reads `body.error` as a string. `format: errorFormats.flat`
+    // makes every 401 below `{ error: "…" }` — the SHAPE Webum and Servum write
+    // by hand. Their TEXT differs from the kit's and from each other, so
+    // byte-identity needs `messages` too; see the option below.
+    format = envelopeErrorFormat,
+    messages = {},
   } = options;
+
+  const DEFAULT_MESSAGES = {
+    missingToken: 'Missing bearer token',
+    invalidToken: 'Invalid or expired token',
+    authUnavailable: 'Authentication backend unavailable',
+    notProvisioned: 'Account is not provisioned for this service',
+  } as const;
+
+  type DenyKind = keyof typeof DEFAULT_MESSAGES;
+
+  const deny = (
+    req: Request,
+    res: Response,
+    status: number,
+    code: string,
+    kind: DenyKind,
+  ): void => {
+    const override = messages[kind];
+    let message: string = DEFAULT_MESSAGES[kind];
+    if (typeof override === 'string') {
+      message = override;
+    } else if (typeof override === 'function') {
+      // A caller-supplied message runs on the rejection path, where nothing is
+      // left to catch a throw: it would answer nothing at all on the exact
+      // request that must be refused. Fall back to the kit's text instead.
+      try {
+        const produced = override(req);
+        if (typeof produced === 'string' && produced.length > 0) message = produced;
+      } catch (err) {
+        console.error('[server-kit] auth message threw; using the default:', err);
+      }
+    }
+    respondError(res, { status, code, message }, format);
+  };
 
   return function supabaseBearerAuthMiddleware(
     req: Request,
@@ -90,7 +162,7 @@ export function supabaseBearerAuth<TUser = SupabaseAuthUser>(
 
     if (!token) {
       if (required) {
-        sendError(res, 401, 'UNAUTHORIZED', 'Missing bearer token');
+        deny(req, res, 401, 'UNAUTHORIZED', 'missingToken');
         return;
       }
       next();
@@ -112,7 +184,7 @@ export function supabaseBearerAuth<TUser = SupabaseAuthUser>(
         // Thrown, not returned: the auth backend is down, the token may be fine.
         onAuthBackendError(err, req);
         if (required) {
-          sendError(res, 503, 'AUTH_UNAVAILABLE', 'Authentication backend unavailable');
+          deny(req, res, 503, 'AUTH_UNAVAILABLE', 'authUnavailable');
           return;
         }
         next();
@@ -121,7 +193,7 @@ export function supabaseBearerAuth<TUser = SupabaseAuthUser>(
 
       if (!user) {
         if (required) {
-          sendError(res, 401, 'UNAUTHORIZED', 'Invalid or expired token');
+          deny(req, res, 401, 'UNAUTHORIZED', 'invalidToken');
           return;
         }
         next();
@@ -135,7 +207,7 @@ export function supabaseBearerAuth<TUser = SupabaseAuthUser>(
         if (mapped === null || mapped === undefined) {
           // The mapper refused this identity (no local row, deleted account…).
           if (required) {
-            sendError(res, 403, 'FORBIDDEN', 'Account is not provisioned for this service');
+            deny(req, res, 403, 'FORBIDDEN', 'notProvisioned');
             return;
           }
           next();

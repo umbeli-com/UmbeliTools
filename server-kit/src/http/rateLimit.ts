@@ -21,9 +21,13 @@
  */
 
 import type { Request, RequestHandler, Response } from 'express';
-import { fail } from './envelope.js';
+import {
+  envelopeErrorFormat,
+  respondError,
+  type ErrorFormatOption,
+} from './envelope.js';
 
-export interface RateLimitOptions {
+export interface RateLimitOptions extends ErrorFormatOption {
   /** Width of the sliding window, in milliseconds. */
   windowMs: number;
   /** Requests tolerated per key inside the window. */
@@ -73,6 +77,10 @@ export function rateLimit(options: RateLimitOptions): RateLimitHandler {
     skip,
     onLimit,
     sweepEvery = 500,
+    // Servum mounted this limiter next to hand-written `{ error }` routes; the
+    // two shapes side by side are what `apps/web/src/lib/api.ts` had to learn
+    // to un-tangle. `format: errorFormats.flat` removes the second shape.
+    format = envelopeErrorFormat,
   } = options;
 
   if (!(windowMs > 0)) throw new TypeError('[server-kit] rateLimit: windowMs must be > 0');
@@ -117,7 +125,7 @@ export function rateLimit(options: RateLimitOptions): RateLimitHandler {
       res.setHeader('RateLimit-Remaining', '0');
       res.setHeader('RateLimit-Reset', String(retryAfter));
       onLimit?.(req, res, key);
-      res.status(429).json(fail(message, code));
+      respondError(res, { status: 429, code, message }, format);
       return;
     }
 

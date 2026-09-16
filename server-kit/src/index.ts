@@ -61,7 +61,27 @@ export {
   type SuccessEnvelope,
   type ErrorEnvelope,
   type ErrorHandlerOptions,
+  type NotFoundHandlerOptions,
 } from './http/envelope.js';
+
+// ── Response shape, per app ─────────────────────────────────────────────
+// The kit envelope stays the default everywhere. These let an app that already
+// answers `{ error: "message" }` adopt the guards without its clients seeing a
+// different byte. See http/envelope.ts for the three backends this unblocks.
+export {
+  errorFormats,
+  envelopeErrorFormat,
+  flatErrorFormat,
+  respondError,
+  type ErrorFormat,
+  type ErrorFormatOption,
+  type ErrorPayload,
+} from './http/envelope.js';
+export {
+  createErrorKit,
+  type CreateErrorKitOptions,
+  type ErrorKit,
+} from './http/errorKit.js';
 
 // ── CORS ────────────────────────────────────────────────────────────────
 export {

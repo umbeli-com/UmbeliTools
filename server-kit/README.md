@@ -182,6 +182,59 @@ rather than trying to write twice.
 > order follows this repo: `sendError(res, status, code, message, details?)`.
 > Do not mix the two envelopes inside one API surface.
 
+### `createErrorKit({ format })` — the error shape is an argument
+
+The envelope above is the **default** and does not move. But it is not what
+every frontend in the suite reads, and that is what kept three backends off
+this package:
+
+| backend | its client reads | what the kit's envelope did |
+|---|---|---|
+| Webum | `apps/admin/src/lib/managerBilling.ts` — `body?.error \|\| body?.message` | `body.error` is a truthy **object** → the user is shown « [object Object] ». Webum took `bearerToken()` only. |
+| Servum | `apps/web/src/lib/api.ts` — same, as a string | refused `errorKit`; now carries an `errorMessage()` whose only job is to un-tangle two shapes out of one API |
+| Profilum | `utils/response.js` | already the envelope — this is where the shape came from |
+
+So pass the shape. `errorFormats.flat` is `{ error: "message" }` — nothing else,
+byte-identical to the hand-written `res.status(401).json({ error })` it replaces:
+
+```js
+const { createErrorKit, errorFormats } = require('@umbeli-com/server-kit');
+
+const http = createErrorKit({ format: errorFormats.flat });
+
+app.use('/api', http.rateLimit({ windowMs: 60_000, max: 120 }));
+app.use('/api/private', http.supabaseBearerAuth(supabase));
+app.use('/api/internal', http.serviceKeyMiddleware(ENV.SERVICE_KEY, {
+  status: 403,                       // Servum answers 403, not the kit's 401
+  message: 'Invalid service key',
+  requireConfigured: false,          // an unset key rejects instead of 500
+}));
+app.use(http.notFoundHandler());
+app.use(http.errorHandler());        // still last
+
+// routes that write errors by hand get the shape too
+http.sendError(res, 422, 'VALIDATION', 'Le slug est déjà pris');  // { error: "…" }
+```
+
+**Use the factory, not the per-middleware option.** Both exist — the factory is
+built on the option, and a per-call `format` still wins for the one route that
+must differ. But five things can answer an error (`supabaseBearerAuth`,
+`serviceKeyMiddleware`, `rateLimit`, `notFoundHandler`, `errorHandler`), and
+forgetting one does not fail a build, a typecheck or a test: it ships, and some
+rare path answers in the other shape. That bug already happened once — it is why
+Servum's `api.ts` has an `errorMessage()`.
+
+A format is just `(payload) => body`, where `payload` is
+`{ status, code, message, details? }` — `message` is already redacted and
+production-safe when it arrives, so RFC 7807 or anything else is three lines. A
+format that throws or returns `undefined` falls back to the envelope rather than
+hanging the request: this runs inside the terminal handler, where nothing is
+left to catch a throw.
+
+Only **errors** are formattable. `ok()` / `sendSuccess()` are opt-in per call
+site, so an app that never calls them is never affected; error bodies come out
+of middleware the app does not write, which was the whole problem.
+
 ### `corsAllowlist(env?, options?)` / `corsMiddleware(...)`
 
 Reads `FRONTEND_ORIGIN`, then `CORS_ORIGINS`, then `CORS_ORIGIN` — all three
