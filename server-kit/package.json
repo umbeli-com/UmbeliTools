@@ -1,6 +1,6 @@
 {
   "name": "@umbeli-com/server-kit",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Shared Express plumbing for Umbeli backends — Supabase bearer auth, service key, error envelope, CORS allowlist, rate limiting, path-traversal guard. Dual CJS + ESM.",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
