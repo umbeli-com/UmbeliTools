@@ -27,7 +27,7 @@
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && node scripts/fixup-dual-build.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "npm run build && node --test test/",
+    "test": "npm run build && node --test test/*.test.mjs test/*.test.cjs",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
