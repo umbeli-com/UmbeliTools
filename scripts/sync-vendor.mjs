@@ -5,6 +5,7 @@
  *   node scripts/sync-vendor.mjs            # build + pousse partout
  *   node scripts/sync-vendor.mjs --check    # ne touche à rien, sort en 1 si dérive
  *   node scripts/sync-vendor.mjs --add <chemin-du-backend>   # câble une nouvelle app
+ *   node scripts/sync-vendor.mjs --app Profilum            # une seule app (préfixe du chemin)
  *
  * Pourquoi vendoriser plutôt qu'installer depuis GitHub Packages : AUCUN backend
  * de la suite n'a d'auth registry au moment du `docker build`. Le Dockerfile de
@@ -38,6 +39,9 @@ const SKIP = new Set(['node_modules', 'dist', '.git', '.claude', 'build', 'cover
 const argv = process.argv.slice(2)
 const CHECK = argv.includes('--check')
 const ADD = argv.includes('--add') ? argv[argv.indexOf('--add') + 1] : null
+// Même option que le sync-vendor d'UmbeliumComponents : synchroniser une app
+// sans toucher les repos où quelqu'un travaille déjà (ou un agent).
+const ONLY_APP = argv.includes('--app') ? argv[argv.indexOf('--app') + 1] : null
 
 const C = { red: '\x1b[31m', green: '\x1b[32m', yellow: '\x1b[33m', dim: '\x1b[2m', bold: '\x1b[1m', off: '\x1b[0m' }
 const c = (k, s) => `${C[k]}${s}${C.off}`
@@ -92,7 +96,7 @@ if (ADD) {
   process.exit(0)
 }
 
-const targets = discoverTargets()
+const targets = discoverTargets().filter((t) => !ONLY_APP || t.app === ONLY_APP || t.app.startsWith(`${ONLY_APP}/`))
 if (!targets.length) {
   console.log(c('yellow', '\nAucun backend ne déclare encore ces packages.'))
   console.log(c('dim', '  → node scripts/sync-vendor.mjs --add ../Umbelium/<App>/backend\n'))
