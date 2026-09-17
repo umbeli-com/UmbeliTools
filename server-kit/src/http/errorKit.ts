@@ -69,6 +69,8 @@ export interface CreateErrorKitOptions {
   logger?: (err: unknown, req: Request) => void;
   /** Default `exposeInternals` for `errorHandler()` built here. */
   exposeInternals?: boolean;
+  /** Default `opaqueThirdPartyErrors` for `errorHandler()` built here. */
+  opaqueThirdPartyErrors?: boolean;
 }
 
 /** Everything that can answer an error, pre-bound to one shape. */
@@ -113,7 +115,7 @@ export interface ErrorKit {
 }
 
 export function createErrorKit(options: CreateErrorKitOptions = {}): ErrorKit {
-  const { format = envelopeErrorFormat, logger, exposeInternals } = options;
+  const { format = envelopeErrorFormat, logger, exposeInternals, opaqueThirdPartyErrors } = options;
 
   /**
    * A per-call option overrides the kit's — but only when it actually CARRIES
@@ -142,6 +144,7 @@ export function createErrorKit(options: CreateErrorKitOptions = {}): ErrorKit {
           format,
           ...(logger !== undefined ? { logger } : {}),
           ...(exposeInternals !== undefined ? { exposeInternals } : {}),
+          ...(opaqueThirdPartyErrors !== undefined ? { opaqueThirdPartyErrors } : {}),
         }),
       ),
     notFoundHandler: (o) => notFoundHandler(withFormat(o)),

@@ -661,3 +661,55 @@ test('an option bag carrying `format: undefined` keeps the kit shape instead of 
   assert.ok(!JSON.stringify(leaky.body).includes('hunter2'), 'the internal error leaked');
   assert.ok(!JSON.stringify(leaky.body).includes('stack'), 'the stack leaked');
 });
+
+test('errorHandler({ opaqueThirdPartyErrors }) — only AppErrors speak (Profilum contract)', async () => {
+  const kit = await import('@umbeli-com/server-kit');
+  const mkRes = () => ({
+    code: 0, body: null, headersSent: false,
+    status(c) { this.code = c; return this; },
+    json(b) { this.body = b; return this; },
+  });
+  const req = { method: 'POST', originalUrl: '/api/ai/analyze', url: '/api/ai/analyze' };
+  const silent = () => {};
+  const run = (handler, err) => { const res = mkRes(); handler(err, req, res, () => {}); return res; };
+
+  const prod = kit.errorHandler({ opaqueThirdPartyErrors: true, exposeInternals: false, logger: silent });
+  const dev = kit.errorHandler({ opaqueThirdPartyErrors: true, exposeInternals: true, logger: silent });
+
+  // OpenAI AuthenticationError carries `status`, not `statusCode`: stays 500.
+  const openai = Object.assign(new Error('Incorrect API key provided'), { status: 401, type: 'invalid_request_error' });
+  let res = run(prod, openai);
+  assert.equal(res.code, 500);
+  assert.deepEqual(res.body, { success: false, error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } });
+
+  // body-parser 413 carries statusCode: the status is kept, code and message are not.
+  const tooLarge = Object.assign(new Error('request entity too large'), { status: 413, statusCode: 413, type: 'entity.too.large' });
+  res = run(prod, tooLarge);
+  assert.equal(res.code, 413);
+  assert.deepEqual(res.body, { success: false, error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } });
+
+  // Exposed internals show the message, still no code and no stack.
+  res = run(dev, Object.assign(new Error('invalid input syntax for type uuid'), { code: '22P02' }));
+  assert.equal(res.code, 500);
+  assert.deepEqual(res.body, { success: false, error: { message: 'invalid input syntax for type uuid', code: 'INTERNAL_ERROR' } });
+
+  // A statusCode out of range or not an integer falls back to 500.
+  assert.equal(run(prod, Object.assign(new Error('x'), { statusCode: 302 })).code, 500);
+  assert.equal(run(prod, Object.assign(new Error('x'), { statusCode: '404' })).code, 500);
+
+  // AppErrors are unaffected.
+  res = run(prod, new kit.NotFoundError('Link not found'));
+  assert.equal(res.code, 404);
+  assert.deepEqual(res.body, { success: false, error: { message: 'Link not found', code: 'NOT_FOUND' } });
+
+  // Default (option absent) is unchanged: the third-party status and code are read.
+  res = run(kit.errorHandler({ exposeInternals: false, logger: silent }), tooLarge);
+  assert.equal(res.code, 413);
+  assert.equal(res.body.error.code, 'ENTITY_TOO_LARGE');
+
+  // The kit factory forwards the default.
+  const http = kit.createErrorKit({ opaqueThirdPartyErrors: true, exposeInternals: false, logger: silent });
+  res = run(http.errorHandler(), openai);
+  assert.equal(res.code, 500);
+  assert.equal(res.body.error.code, 'INTERNAL_ERROR');
+});

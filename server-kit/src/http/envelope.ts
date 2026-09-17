@@ -193,6 +193,29 @@ export interface ErrorHandlerOptions extends ErrorFormatOption {
    * production (`NODE_ENV === 'production'`), true elsewhere.
    */
   exposeInternals?: boolean;
+  /**
+   * Treat errors that are NOT AppErrors as opaque (default: false).
+   *
+   * By default a third-party error is read for what it carries: its status
+   * (`err.status` or `err.statusCode`), its code (`err.code` / `err.type`),
+   * its message for a 4xx, and its stack when internals are exposed. That is
+   * right for an API that wants `413 ENTITY_TOO_LARGE` to reach the caller —
+   * and wrong for one whose contract is « only AppErrors speak »:
+   *
+   * Measured on Profilum's backend (19 real errors from body-parser, multer, pg
+   * and openai, NODE_ENV=production) — only 9/19 identical: an OpenAI
+   * AuthenticationError (`status: 401`, thrown on /api/ai/analyze) answered 500
+   * and would answer 401; `pg 22P02`, `MulterError LIMIT_FILE_SIZE` or
+   * `ENTITY_TOO_LARGE` leaked as the code; 'request entity too large' replaced
+   * 'Internal server error' in production (asserted by its e2e api-security).
+   *
+   * With `true`, a non-AppError answers: status from `err.statusCode` ONLY
+   * (integer 400–599, else 500 — never `err.status`), code `INTERNAL_ERROR`,
+   * message `err.message` only when internals are exposed (else
+   * 'Internal server error', for a 4xx too), and no `details`. AppErrors are
+   * unaffected.
+   */
+  opaqueThirdPartyErrors?: boolean;
 }
 
 /**
@@ -245,6 +268,7 @@ export function errorHandler(options: ErrorHandlerOptions = {}) {
   const expose =
     options.exposeInternals ?? process.env.NODE_ENV !== 'production';
   const format = options.format ?? envelopeErrorFormat;
+  const opaque = options.opaqueThirdPartyErrors === true;
   const log =
     options.logger ??
     ((err: unknown, req: Request) => {
@@ -279,6 +303,22 @@ export function errorHandler(options: ErrorHandlerOptions = {}) {
     // handler is the only thing that can close this connection correctly.
     if (res.headersSent) {
       _next(err);
+      return;
+    }
+
+    if (opaque) {
+      const raw = (err as { statusCode?: unknown } | null | undefined)?.statusCode;
+      const status =
+        typeof raw === 'number' && Number.isInteger(raw) && raw >= 400 && raw <= 599 ? raw : 500;
+      respondError(
+        res,
+        {
+          status,
+          code: 'INTERNAL_ERROR',
+          message: expose ? (err as Error)?.message || 'Internal server error' : 'Internal server error',
+        },
+        format,
+      );
       return;
     }
 
